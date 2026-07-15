@@ -367,21 +367,23 @@ table.items tr:nth-child(even) td{background:var(--cream2)}
   </div>
 </div>
 <script>
-/* ================= STORAGE (persistent, shared across all users via window.storage) ================= */
+/* ================= STORAGE (localStorage — GitHub Pages ke liye permanent) ================= */
 const ADMINS=["mis@oakcraft.in","vishu@oakcraft.in"];
 const MEM={};
-const hasStore=typeof window!=='undefined'&&window.storage;
+let hasLS=false;
+try{localStorage.setItem('__t','1');localStorage.removeItem('__t');hasLS=true;}catch(e){hasLS=false;}
+const hasStore=!hasLS&&typeof window!=='undefined'&&window.storage; // Claude artifact fallback
 async function sGet(key,shared,d){
-  if(!hasStore)return (key in MEM)?JSON.parse(MEM[key]):d;
-  try{const r=await window.storage.get(key,shared);return r&&r.value?JSON.parse(r.value):d;}catch(e){return d;}
+  if(hasLS){try{const v=localStorage.getItem(key);return v!=null?JSON.parse(v):d;}catch(e){return d;}}
+  if(hasStore){try{const r=await window.storage.get(key,shared);return r&&r.value?JSON.parse(r.value):d;}catch(e){return d;}}
+  return (key in MEM)?JSON.parse(MEM[key]):d;
 }
 async function sSet(key,val,shared){
   MEM[key]=JSON.stringify(val);
-  if(hasStore){try{await window.storage.set(key,JSON.stringify(val),shared);}catch(e){console.error('storage',e);}}
+  if(hasLS){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){console.error('storage full?',e);}}
+  else if(hasStore){try{await window.storage.set(key,JSON.stringify(val),shared);}catch(e){console.error('storage',e);}}
 }
 const K_USERS="oc-users",K_SESSION="oc-session",K_QUOTES="oc-quotes",K_COMPANY="oc-company",K_PICOUNTER="oc-pi-counter";
-// users, quotes, company, PI counter => SHARED (sab users ke liye common)
-// session => personal (har user apne device par logged-in rehta hai)
 const load=(k,d)=>(k in MEM?JSON.parse(MEM[k]):d);
 const save=(k,v)=>{
   const shared=(k!==K_SESSION);
@@ -429,7 +431,8 @@ function doLogin(){
 function startSession(email){session=email;sSet(K_SESSION,email,false);enterApp();}
 function logout(){
   session=null;delete MEM[K_SESSION];
-  if(hasStore){window.storage.delete(K_SESSION,false).catch(()=>{});}
+  if(hasLS){try{localStorage.removeItem(K_SESSION);}catch(e){}}
+  else if(hasStore){window.storage.delete(K_SESSION,false).catch(()=>{});}
   document.getElementById('appView').classList.add('hidden');
   document.getElementById('authView').classList.remove('hidden');
   resetAuth();
@@ -532,16 +535,16 @@ function recalc(){
 /* ================= FORM <-> DATA ================= */
 const DEFAULT_TERMS="1. This is a Proforma Invoice and not a tax invoice.\n2. Prices are valid for 2 days from the date of issue.\n3. Delivery period: 7 days from order confirmation.\n4. Payment Terms: 40% Advance / Balance before dispatch.\n5. Goods once sold will not be taken back.\n6. Transportation: extra / as agreed.\n7. 3-Year Part Replacement Warranty. Does not cover cutting, burning or tearing.";
 const val=id=>document.getElementById(id).value;
-function localMaxPi(){let max=00;quotes.forEach(q=>{const m=/(\d+)\s*$/.exec(q.piNo||'');if(m)max=Math.max(max,parseInt(m[1]));});return max;}
+function localMaxPi(){let max=98;quotes.forEach(q=>{const m=/(\d+)\s*$/.exec(q.piNo||'');if(m)max=Math.max(max,parseInt(m[1]));});return max;}
 async function peekNextPi(){ // sirf dikhane ke liye — final number save par lock hota hai
   const c=await sGet(K_PICOUNTER,true,null);
-  const n=Math.max(Number(c)||00,localMaxPi())+1;
+  const n=Math.max(Number(c)||98,localMaxPi())+1;
   return "OC/PI/"+String(n).padStart(3,'0');
 }
 async function reservePiNo(){ // save ke waqt: fresh counter padho, +1 karo, wापas likho => globally unique
   quotes=await sGet(K_QUOTES,true,quotes||[]);
   const c=await sGet(K_PICOUNTER,true,null);
-  const n=Math.max(Number(c)||00,localMaxPi())+1;
+  const n=Math.max(Number(c)||98,localMaxPi())+1;
   await sSet(K_PICOUNTER,n,true);
   return "OC/PI/"+String(n).padStart(3,'0');
 }
@@ -670,7 +673,7 @@ function renderInvoice(q){
           '<div class="paytext" style="font-size:11.5px;color:#6b5842;line-height:1.7">Pay to <b style="color:var(--brown)">'+esc(q.bank.name)+'</b><br>UPI ID: <b style="color:var(--brown)">'+esc(q.bank.upi)+'</b><br>Scan &amp; pay '+fmt(t.grand)+'</div>'+
           '<div class="sign" style="text-align:right;font-size:12px;margin-top:18px"><div class="as">Authorised Signatory</div><div class="fo">For Oakcraft Furniture</div><div class="sl"></div></div>'+
         '</div></div></div>'+
-    '<div class="inv-foot">📞 8700540830 &nbsp; ✉ contact@oakcraft.in &nbsp; Delhi – 110039'+
+    '<div class="inv-foot">📞 7827554727 &nbsp; ✉ contact@oakcraft.in &nbsp; Delhi – 110039'+
       '<div class="thanks">Thank you for your business!</div></div>'+
     '<div style="height:14px"></div>'+
   '</div>'+
