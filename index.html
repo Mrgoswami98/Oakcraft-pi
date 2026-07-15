@@ -118,7 +118,7 @@ table.items td.center{text-align:center}
 table.items .imgcell{width:70px;text-align:center}
 table.items .imgcell img{width:60px;height:78px;object-fit:contain;border:1px solid #eee}
 table.items tr:nth-child(even) td{background:var(--cream2)}
-.bottom{display:flex;gap:14px;padding:6px 18px 16px}
+.bottom{display:flex;gap:14px;padding:6px 18px 16px;page-break-inside:avoid;break-inside:avoid}
 .bottom .bank{flex:1.2}
 .bottom .totals{flex:1}
 .bank table,.totals table{width:100%;border-collapse:collapse}
@@ -303,12 +303,12 @@ table.items tr:nth-child(even) td{background:var(--cream2)}
           <div class="field"><label>GST Rate (%)</label><input id="f_gst" type="number" value="18" oninput="recalc()"></div>
         </div>
         <div class="form-grid">
-          <div class="field"><label>Account Name</label><input id="f_bankName" value="OAKCRAFT"></div>
-          <div class="field"><label>Bank Name</label><input id="f_bankBank" value="Kotak Mahindra Bank"></div>
-          <div class="field"><label>Account No.</label><input id="f_bankAcc" value="8700545550"></div>
-          <div class="field"><label>IFSC Code</label><input id="f_bankIfsc" value="KKBK0000197"></div>
-          <div class="field"><label>Branch</label><input id="f_bankBranch" value="Rohini"></div>
-          <div class="field"><label>UPI ID (QR banega)</label><input id="f_upi" value="oakcraft@kotak"></div>
+          <div class="field"><label>Account Name</label><input id="f_bankName" value="OAKCRAFT" readonly></div>
+          <div class="field"><label>Bank Name</label><input id="f_bankBank" value="Kotak Mahindra Bank" readonly></div>
+          <div class="field"><label>Account No.</label><input id="f_bankAcc" value="8700545550" readonly></div>
+          <div class="field"><label>IFSC Code</label><input id="f_bankIfsc" value="KKBK0000197" readonly></div>
+          <div class="field"><label>Branch</label><input id="f_bankBranch" value="Rohini" readonly></div>
+          <div class="field"><label>UPI ID (QR banega)</label><input id="f_upi" value="oakcraft@kotak" readonly></div>
         </div>
         <div class="totbox" id="liveTot"></div>
       </fieldset>
@@ -728,13 +728,39 @@ function stat(n,l){return '<div class="s"><div class="n">'+n+'</div><div class="
 /* ================= PRINT / PDF ================= */
 function printInvoice(){window.print();}
 function captureToPdf(pdf,el,startNewPage){
-  return html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(canvas=>{
-    const img=canvas.toDataURL('image/jpeg',0.92);
+  return html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff"}).then(canvas=>{
+    const img=canvas.toDataURL("image/jpeg",0.92);
     const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();
-    const iw=pw,ih=canvas.height*pw/canvas.width;let left=ih,pos=0;
-    if(startNewPage)pdf.addPage();
-    pdf.addImage(img,'JPEG',0,pos,iw,ih);left-=ph;
-    while(left>0){pos=left-ih;pdf.addPage();pdf.addImage(img,'JPEG',0,pos,iw,ih);left-=ph;}
+    const iw=pw,ih=canvas.height*pw/canvas.width;
+    const pxPerMm=canvas.width/pw; // canvas px per mm of pdf
+    const pagePx=ph*pxPerMm;       // one pdf page height in canvas px
+    // Find the bank+scanner block (.bottom) so it is never split across pages
+    let keepStart=-1,keepEnd=-1;
+    const bottomEl=el.querySelector(".bottom");
+    if(bottomEl){
+      const elRect=el.getBoundingClientRect(),bRect=bottomEl.getBoundingClientRect();
+      const sc=canvas.height/elRect.height;
+      keepStart=(bRect.top-elRect.top)*sc;
+      keepEnd=(bRect.bottom-elRect.top)*sc;
+    }
+    let srcY=0,first=true;
+    while(srcY<canvas.height-1){
+      let sliceH=Math.min(pagePx,canvas.height-srcY);
+      // If this page would cut through the bank/scanner block, stop the page
+      // right before the block so the whole block lands on the next page.
+      if(keepStart>=0 && srcY<keepStart && srcY+sliceH>keepStart && srcY+sliceH<keepEnd){
+        sliceH=keepStart-srcY;
+      }
+      const pageCanvas=document.createElement("canvas");
+      pageCanvas.width=canvas.width;pageCanvas.height=Math.round(sliceH);
+      const ctx=pageCanvas.getContext("2d");
+      ctx.fillStyle="#ffffff";ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
+      ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
+      const pageImg=pageCanvas.toDataURL("image/jpeg",0.92);
+      if(!first||startNewPage)pdf.addPage();
+      pdf.addImage(pageImg,"JPEG",0,0,iw,sliceH/pxPerMm);
+      first=false;srcY+=sliceH;
+    }
   });
 }
 function downloadPDF(){
