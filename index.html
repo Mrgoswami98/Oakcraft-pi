@@ -761,7 +761,11 @@ function downloadPDF(){
     .then(()=>why?captureToPdf(pdf,why,true):null) // Why Oakcraft => hamesha alag page par
     .then(()=>{
       const q=quotes.find(x=>x.id===currentId);
-      pdf.save((q?q.piNo.replace(/\//g,'_'):'Proforma_Invoice')+'.pdf');
+      let pi=q?q.piNo:'';
+      if(!pi){const el2=document.getElementById('f_piNo');pi=el2?el2.value:'';}
+      pi=(pi||'Proforma_Invoice').trim();
+      // File name me "/" allowed nahi hota (OS rule), isliye "-" use hota hai: OC-PI2607-005.pdf
+      pdf.save(pi.replace(/[\/\\:*?"<>|]/g,'-')+'.pdf');
     });
 }
 
