@@ -118,7 +118,7 @@ table.items td.center{text-align:center}
 table.items .imgcell{width:70px;text-align:center}
 table.items .imgcell img{width:60px;height:78px;object-fit:contain;border:1px solid #eee}
 table.items tr:nth-child(even) td{background:var(--cream2)}
-.bottom{display:flex;gap:14px;padding:6px 18px 16px;page-break-inside:avoid;break-inside:avoid}
+.bottom{display:flex;gap:14px;padding:6px 18px 16px}
 .bottom .bank{flex:1.2}
 .bottom .totals{flex:1}
 .bank table,.totals table{width:100%;border-collapse:collapse}
@@ -182,6 +182,7 @@ table.items tr:nth-child(even) td{background:var(--cream2)}
 .why .compliment b{color:var(--gold)}
 .why .wfoot{background:var(--gold);color:#fff;text-align:center;letter-spacing:2px;font-size:11px;padding:9px;margin:16px 12px 0;border-radius:3px}
 .small-note{font-size:11px;color:#8a7a66;margin-top:6px}
+input.bank-locked[readonly]{background:#f1ece3;color:#7a6a55;cursor:not-allowed;border-style:dashed}
 @media print{
   body *{visibility:hidden}
   #previewArea,#previewArea *{visibility:visible}
@@ -302,14 +303,15 @@ table.items tr:nth-child(even) td{background:var(--cream2)}
           <div class="field"><label>Freight (₹)</label><input id="f_freight" type="number" value="0" oninput="recalc()"></div>
           <div class="field"><label>GST Rate (%)</label><input id="f_gst" type="number" value="18" oninput="recalc()"></div>
         </div>
-        <div class="form-grid">
-          <div class="field"><label>Account Name</label><input id="f_bankName" value="OAKCRAFT" readonly></div>
-          <div class="field"><label>Bank Name</label><input id="f_bankBank" value="Kotak Mahindra Bank" readonly></div>
-          <div class="field"><label>Account No.</label><input id="f_bankAcc" value="8700545550" readonly></div>
-          <div class="field"><label>IFSC Code</label><input id="f_bankIfsc" value="KKBK0000197" readonly></div>
-          <div class="field"><label>Branch</label><input id="f_bankBranch" value="Rohini" readonly></div>
-          <div class="field"><label>UPI ID (QR banega)</label><input id="f_upi" value="oakcraft@kotak" readonly></div>
+        <div class="form-grid" id="bankFieldsWrap">
+          <div class="field"><label>Account Name 🔒</label><input id="f_bankName" class="bank-locked" value="OAKCRAFT" readonly></div>
+          <div class="field"><label>Bank Name 🔒</label><input id="f_bankBank" class="bank-locked" value="Kotak Mahindra Bank" readonly></div>
+          <div class="field"><label>Account No. 🔒</label><input id="f_bankAcc" class="bank-locked" value="8700545550" readonly></div>
+          <div class="field"><label>IFSC Code 🔒</label><input id="f_bankIfsc" class="bank-locked" value="KKBK0000197" readonly></div>
+          <div class="field"><label>Branch 🔒</label><input id="f_bankBranch" class="bank-locked" value="Rohini" readonly></div>
+          <div class="field"><label>UPI ID (QR banega) 🔒</label><input id="f_upi" class="bank-locked" value="oakcraft@kotak" readonly></div>
         </div>
+        <div class="small-note">🔒 Bank details locked hain — sirf Admin edit kar sakta hai.</div>
         <div class="totbox" id="liveTot"></div>
       </fieldset>
       <fieldset>
@@ -467,6 +469,7 @@ function enterApp(){
   document.getElementById('whoLabel').innerHTML=(u?esc(u.userId):esc(session))+" &nbsp;·&nbsp; "+(admin?"<b>ADMIN</b>":"User");
   document.getElementById('dashTitle').textContent=admin?"All Quotations":"My Quotations";
   document.getElementById('settingsBtn').classList.toggle('hidden',!admin);
+  document.querySelectorAll('.bank-locked').forEach(inp=>{inp.readOnly=!admin;});
   goDash();
 }
 function showView(id){['dashView','formView','viewPreview'].forEach(v=>document.getElementById(v).classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
@@ -535,26 +538,38 @@ function recalc(){
 /* ================= FORM <-> DATA ================= */
 const DEFAULT_TERMS="1. This is a Proforma Invoice and not a tax invoice.\n2. Prices are valid for 2 days from the date of issue.\n3. Delivery period: 7 days from order confirmation.\n4. Payment Terms: 40% Advance / Balance before dispatch.\n5. Goods once sold will not be taken back.\n6. Transportation: extra / as agreed.\n7. 3-Year Part Replacement Warranty. Does not cover cutting, burning or tearing.";
 const val=id=>document.getElementById(id).value;
-function localMaxPi(){let max=00;quotes.forEach(q=>{const m=/(\d+)\s*$/.exec(q.piNo||'');if(m)max=Math.max(max,parseInt(m[1]));});return max;}
+function curYM(){ // e.g. July 2026 => "2607"
+  const d=new Date();return String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0');
+}
+function piStr(ym,n){return "OC/PI"+ym+"/"+String(n).padStart(3,'0');}
+function localMaxPi(ym){ // sirf isi month ke PI numbers me se max serial
+  let max=0;
+  quotes.forEach(q=>{const m=/OC\/PI(\d{4})\/(\d+)/.exec(q.piNo||'');if(m&&m[1]===ym)max=Math.max(max,parseInt(m[2]));});
+  return max;
+}
 async function peekNextPi(){ // sirf dikhane ke liye — final number save par lock hota hai
+  const ym=curYM();
   const c=await sGet(K_PICOUNTER,true,null);
-  const n=Math.max(Number(c)||00,localMaxPi())+1;
-  return "OC/PI/"+String(n).padStart(3,'0');
+  const cn=(c&&c.ym===ym)?Number(c.n)||0:0; // month badla => counter reset
+  const n=Math.max(cn,localMaxPi(ym))+1;
+  return piStr(ym,n);
 }
-async function reservePiNo(){ // save ke waqt: fresh counter padho, +1 karo, wापas likho => globally unique
+async function reservePiNo(){ // save ke waqt: fresh counter padho, +1 karo, wapas likho => unique; har month 001 se reset
   quotes=await sGet(K_QUOTES,true,quotes||[]);
+  const ym=curYM();
   const c=await sGet(K_PICOUNTER,true,null);
-  const n=Math.max(Number(c)||00,localMaxPi())+1;
-  await sSet(K_PICOUNTER,n,true);
-  return "OC/PI/"+String(n).padStart(3,'0');
+  const cn=(c&&c.ym===ym)?Number(c.n)||0:0;
+  const n=Math.max(cn,localMaxPi(ym))+1;
+  await sSet(K_PICOUNTER,{ym:ym,n:n},true);
+  return piStr(ym,n);
 }
-function nextPiNo(){return "OC/PI/"+String(localMaxPi()+1).padStart(3,'0');}
+function nextPiNo(){const ym=curYM();return piStr(ym,localMaxPi(ym)+1);}
 async function newQuotation(){
   editingId=null;prodRows=[{img:'',desc:'',category:'',hsn:'',qty:'',unit:''}];
   document.getElementById('formTitle').textContent="New Proforma Invoice";
   const today=new Date().toISOString().slice(0,10),set=(id,v)=>document.getElementById(id).value=v;
-  set('f_piNo','Auto (save par milega)');document.getElementById('f_piNo').readOnly=true;
-  peekNextPi().then(p=>{if(!editingId)set('f_piNo',p+' (auto)');});
+  set('f_piNo','...');document.getElementById('f_piNo').readOnly=true;
+  peekNextPi().then(p=>{if(!editingId)set('f_piNo',p);});
   set('f_date',today);set('f_valid','2 days from issue');
   const su=users[session];
   set('f_sales',su?(su.userId+(su.phone?', '+su.phone:'')):'');
@@ -673,7 +688,7 @@ function renderInvoice(q){
           '<div class="paytext" style="font-size:11.5px;color:#6b5842;line-height:1.7">Pay to <b style="color:var(--brown)">'+esc(q.bank.name)+'</b><br>UPI ID: <b style="color:var(--brown)">'+esc(q.bank.upi)+'</b><br>Scan &amp; pay '+fmt(t.grand)+'</div>'+
           '<div class="sign" style="text-align:right;font-size:12px;margin-top:18px"><div class="as">Authorised Signatory</div><div class="fo">For Oakcraft Furniture</div><div class="sl"></div></div>'+
         '</div></div></div>'+
-    '<div class="inv-foot">📞 8700540830 &nbsp; ✉ contact@oakcraft.in &nbsp; Delhi – 110039'+
+    '<div class="inv-foot">📞 7827554727 &nbsp; ✉ contact@oakcraft.in &nbsp; Delhi – 110039'+
       '<div class="thanks">Thank you for your business!</div></div>'+
     '<div style="height:14px"></div>'+
   '</div>'+
@@ -728,39 +743,13 @@ function stat(n,l){return '<div class="s"><div class="n">'+n+'</div><div class="
 /* ================= PRINT / PDF ================= */
 function printInvoice(){window.print();}
 function captureToPdf(pdf,el,startNewPage){
-  return html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff"}).then(canvas=>{
-    const img=canvas.toDataURL("image/jpeg",0.92);
+  return html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(canvas=>{
+    const img=canvas.toDataURL('image/jpeg',0.92);
     const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();
-    const iw=pw,ih=canvas.height*pw/canvas.width;
-    const pxPerMm=canvas.width/pw; // canvas px per mm of pdf
-    const pagePx=ph*pxPerMm;       // one pdf page height in canvas px
-    // Find the bank+scanner block (.bottom) so it is never split across pages
-    let keepStart=-1,keepEnd=-1;
-    const bottomEl=el.querySelector(".bottom");
-    if(bottomEl){
-      const elRect=el.getBoundingClientRect(),bRect=bottomEl.getBoundingClientRect();
-      const sc=canvas.height/elRect.height;
-      keepStart=(bRect.top-elRect.top)*sc;
-      keepEnd=(bRect.bottom-elRect.top)*sc;
-    }
-    let srcY=0,first=true;
-    while(srcY<canvas.height-1){
-      let sliceH=Math.min(pagePx,canvas.height-srcY);
-      // If this page would cut through the bank/scanner block, stop the page
-      // right before the block so the whole block lands on the next page.
-      if(keepStart>=0 && srcY<keepStart && srcY+sliceH>keepStart && srcY+sliceH<keepEnd){
-        sliceH=keepStart-srcY;
-      }
-      const pageCanvas=document.createElement("canvas");
-      pageCanvas.width=canvas.width;pageCanvas.height=Math.round(sliceH);
-      const ctx=pageCanvas.getContext("2d");
-      ctx.fillStyle="#ffffff";ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
-      ctx.drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
-      const pageImg=pageCanvas.toDataURL("image/jpeg",0.92);
-      if(!first||startNewPage)pdf.addPage();
-      pdf.addImage(pageImg,"JPEG",0,0,iw,sliceH/pxPerMm);
-      first=false;srcY+=sliceH;
-    }
+    const iw=pw,ih=canvas.height*pw/canvas.width;let left=ih,pos=0;
+    if(startNewPage)pdf.addPage();
+    pdf.addImage(img,'JPEG',0,pos,iw,ih);left-=ph;
+    while(left>0){pos=left-ih;pdf.addPage();pdf.addImage(img,'JPEG',0,pos,iw,ih);left-=ph;}
   });
 }
 function downloadPDF(){
