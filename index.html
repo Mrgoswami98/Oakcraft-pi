@@ -343,7 +343,7 @@ input.bank-locked[readonly]{background:#f1ece3;color:#7a6a55;cursor:not-allowed;
 <div id="settingsOverlay" class="overlay hidden">
   <div class="modal">
     <h2>Company Settings</h2>
-    <p class="small-note">Ye ek baar upload karein — har quotation par apne aap lagega. (Note: is preview me data session tak hi rehta hai.)</p>
+    <p class="small-note">Sabse best tareeka: GitHub repo me <b>logo.png</b>, <b>founder.png</b>, <b>book.png</b> naam se images upload karein — har user ko har device par apne aap dikhengi. Neeche wala upload sirf isi browser ke liye hota hai.</p>
     <div class="upload-slot">
       <div class="thumb" id="thumb_logo">Logo</div>
       <div class="meta"><b>Company Logo</b><p>Invoice header aur login par dikhega. PNG (transparent) best.</p>
@@ -772,10 +772,35 @@ function downloadPDF(){
 /* ================= BOOT ================= */
 document.getElementById('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')authContinue();});
 document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+/* Company images repo se auto-load hoti hain (logo.png, founder.png, book.png) — sab users ko dikhengi */
+const COMPANY_FILES={logo:'logo.png',founder:'founder.png',book:'book.png'};
+function tryLoadCompanyFile(key,file){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{ // file repo me maujood hai => data URL bana ke use karo (PDF me bhi aayegi)
+      try{
+        const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+        c.getContext('2d').drawImage(img,0,0);
+        company[key]=c.toDataURL('image/png');
+      }catch(e){company[key]=file;}
+      res(true);
+    };
+    img.onerror=()=>res(false);
+    img.src=file+'?v='+Date.now();
+  });
+}
+async function loadCompanyDefaults(){
+  const jobs=[];
+  for(const k in COMPANY_FILES){
+    if(!company[k])jobs.push(tryLoadCompanyFile(k,COMPANY_FILES[k]));
+  }
+  if(jobs.length){await Promise.all(jobs);refreshAuthLogo();}
+}
 (async function init(){
   users=await sGet(K_USERS,true,{});
   quotes=await sGet(K_QUOTES,true,[]);
   company=await sGet(K_COMPANY,true,{});
+  await loadCompanyDefaults(); // repo wali images sab users ke liye
   refreshAuthLogo();
   const saved=await sGet(K_SESSION,false,null);
   if(saved&&users[saved]){session=saved;enterApp();} // pehle se logged-in → seedha app
