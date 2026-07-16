@@ -87,19 +87,19 @@ fieldset legend{font-weight:bold;color:var(--brown);padding:0 8px;font-size:14px
 .upload-slot .meta p{margin:3px 0 8px;font-size:12px;color:#8a7a66}
 #previewArea{background:#efe7db;padding:20px}
 .invoice{width:820px;margin:0 auto;background:#fff;color:#2a2118;font-size:12px}
-.inv-head{display:flex}
-.inv-head .left{flex:1.4;background:var(--brown);color:#fff;padding:22px 24px}
+.inv-head{display:flex;border-bottom:3px solid var(--brown)}
+.inv-head .left{flex:1.4;background:#fff;color:var(--brown-dark);padding:22px 24px}
 .inv-head .left .logo-img{max-height:66px;margin-bottom:8px;background:#fff;padding:6px 10px;border-radius:6px}
-.inv-head .left .big{font-size:40px;font-weight:bold;letter-spacing:4px;line-height:1}
-.inv-head .left .sub{font-size:11px;letter-spacing:7px;margin-top:4px}
-.inv-head .left hr{border:none;border-top:1px solid #ffffff55;width:70%;margin:12px 0}
-.inv-head .left .slogan{font-style:italic;font-size:12px;margin-bottom:12px}
-.inv-head .left .addr{font-size:10.5px;line-height:1.6;opacity:.92}
-.inv-head .right{flex:1;background:var(--brown-dark);color:#fff;padding:22px 24px;text-align:right}
-.inv-head .right .pi-title{font-size:22px;font-weight:bold;letter-spacing:1px}
-.inv-head .right .pi-meta{margin-top:16px;font-size:12px;line-height:2}
-.inv-head .right .pi-meta b{font-size:14px}
-.inv-head .right .valid{font-style:italic;font-size:11px;opacity:.85}
+.inv-head .left .big{font-size:40px;font-weight:bold;letter-spacing:4px;line-height:1;color:var(--brown)}
+.inv-head .left .sub{font-size:11px;letter-spacing:7px;margin-top:4px;color:var(--accent)}
+.inv-head .left hr{border:none;border-top:1px solid var(--line);width:70%;margin:12px 0}
+.inv-head .left .slogan{font-style:italic;font-size:12px;margin-bottom:12px;color:var(--accent)}
+.inv-head .left .addr{font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:10.5px;line-height:1.7;color:var(--brown-dark)}
+.inv-head .right{flex:1;background:#fff;color:var(--brown-dark);padding:22px 24px;text-align:right}
+.inv-head .right .pi-title{font-size:22px;font-weight:bold;letter-spacing:1px;color:var(--brown)}
+.inv-head .right .pi-meta{margin-top:16px;font-size:12px;line-height:2;color:var(--brown-dark)}
+.inv-head .right .pi-meta b{font-size:14px;color:var(--brown)}
+.inv-head .right .valid{font-style:italic;font-size:11px;color:var(--accent)}
 .two-box{display:flex;gap:14px;padding:16px 18px}
 .two-box .box{flex:1;border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .two-box .box .bh{background:var(--brown);color:#fff;font-weight:bold;font-size:12px;padding:6px 12px;letter-spacing:1px}
@@ -688,7 +688,7 @@ function renderInvoice(q){
           '<div class="paytext" style="font-size:11.5px;color:#6b5842;line-height:1.7">Pay to <b style="color:var(--brown)">'+esc(q.bank.name)+'</b><br>UPI ID: <b style="color:var(--brown)">'+esc(q.bank.upi)+'</b><br>Scan &amp; pay '+fmt(t.grand)+'</div>'+
           '<div class="sign" style="text-align:right;font-size:12px;margin-top:18px"><div class="as">Authorised Signatory</div><div class="fo">For Oakcraft Furniture</div><div class="sl"></div></div>'+
         '</div></div></div>'+
-    '<div class="inv-foot">📞 7827554727 &nbsp; ✉ contact@oakcraft.in &nbsp; Delhi – 110039'+
+    '<div class="inv-foot">📞 For Enquiry Call on 8700540830 &nbsp; ✉ contact@oakcraft.in &nbsp; Delhi – 110039'+
       '<div class="thanks">Thank you for your business!</div></div>'+
     '<div style="height:14px"></div>'+
   '</div>'+
